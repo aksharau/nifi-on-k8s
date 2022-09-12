@@ -1,0 +1,320 @@
+Created 4 nodes on GCP.
+
+1. Install kubeadm
+
+https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+
+sudo apt-get update
+sudo apt-get install -y apt-transport-https ca-certificates curl
+
+sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+2. Configure cgroup driver as systemd
+
+https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/configure-cgroup-driver/
+
+root@instance-1:~/kubeadm# pwd
+/root/kubeadm
+root@instance-1:~/kubeadm# ls
+kubeadm-config.yaml
+
+kind: ClusterConfiguration
+apiVersion: kubeadm.k8s.io/v1beta3
+kubernetesVersion: v1.25.0
+---
+kind: KubeletConfiguration
+apiVersion: kubelet.config.k8s.io/v1beta1
+cgroupDriver: systemd
+
+We will pass it like so : kubeadm init --config kubeadm-config.yaml
+
+
+Got this error:
+
+root@instance-1:~# cd kubeadm/
+root@instance-1:~/kubeadm# kubeadm init --config kubeadm-config.yaml
+this version of kubeadm only supports deploying clusters with the control plane version >= 1.24.0. Current version: v1.21.0
+To see the stack trace of this error execute with --v=5 or higher
+
+Then changed the version to 1.24 in the kubeadm-config.yaml.
+
+Following were the errors
+
+root@instance-1:~/kubeadm# kubeadm init --config kubeadm-config.yaml
+[init] Using Kubernetes version: v1.24.0
+[preflight] Running pre-flight checks
+        [WARNING SystemVerification]: missing optional cgroups: blkio
+error execution phase preflight: [preflight] Some fatal errors occurred:
+        [ERROR CRI]: container runtime is not running: output: time="2022-09-12T09:36:35Z" level=fatal msg="unable to determine runtime API version: rpc error: code = Unavailable desc = connection error: desc = \"transport: Error while dialing dial unix /var/run/containerd/containerd.sock: connect: no such file or directory\""
+, error: exit status 1
+        [ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]: /proc/sys/net/bridge/bridge-nf-call-iptables does not exist
+        [ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1
+        [ERROR KubeletVersion]: the kubelet version is higher than the control plane version. This is not a supported version skew and may lead to a malfunctional cluster. Kubelet version: "1.25.0" Control plane version: "1.24.0"
+[preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...`
+To see the stack trace of this error execute with --v=5 or higher
+
+3. Installed containerd
+
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+echo "deb [arch=amd64] https://download.docker.com/linux/debian buster stable" |sudo tee /etc/apt/sources.list.d/docker.list
+sudo apt update
+sudo apt install containerd
+
+service containerd restart
+
+root@instance-1:~/kubeadm# systemctl status containerd
+● containerd.service - containerd container runtime
+     Loaded: loaded (/lib/systemd/system/containerd.service; enabled; vendor preset: enabled)
+     Active: active (running) since Mon 2022-09-12 09:41:23 UTC; 30s ago
+       Docs: https://containerd.io
+    Process: 56498 ExecStartPre=/sbin/modprobe overlay (code=exited, status=0/SUCCESS)
+   Main PID: 56499 (containerd)
+      Tasks: 9
+     Memory: 10.6M
+        CPU: 136ms
+     CGroup: /system.slice/containerd.service
+             └─56499 /usr/bin/containerd
+
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.259276512Z" level=info msg=serving... address=/run/containerd/containerd.sock.ttrpc
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.259359929Z" level=info msg=serving... address=/run/containerd/containerd.sock
+Sep 12 09:41:23 instance-1 systemd[1]: Started containerd container runtime.
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.261728000Z" level=info msg="containerd successfully booted in 0.043615s"
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.262808411Z" level=info msg="Start subscribing containerd event"
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.262879715Z" level=info msg="Start recovering state"
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.262972950Z" level=info msg="Start event monitor"
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.262991075Z" level=info msg="Start snapshots syncer"
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.263005072Z" level=info msg="Start cni network conf syncer"
+Sep 12 09:41:23 instance-1 containerd[56499]: time="2022-09-12T09:41:23.263017307Z" level=info msg="Start streaming server"
+
+Got this error next
+
+root@instance-1:~/kubeadm# kubeadm init --config kubeadm-config.yaml
+[init] Using Kubernetes version: v1.24.0
+[preflight] Running pre-flight checks
+        [WARNING SystemVerification]: missing optional cgroups: blkio
+error execution phase preflight: [preflight] Some fatal errors occurred:
+        [ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]: /proc/sys/net/bridge/bridge-nf-call-iptables does not exist
+        [ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1
+        [ERROR KubeletVersion]: the kubelet version is higher than the control plane version. This is not a supported version skew and may lead to a malfunctional cluster. Kubelet version: "1.25.0" Control plane version: "1.24.0"
+[preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...`
+To see the stack trace of this error execute with --v=5 or higher
+
+
+Changed the version in the kubeadm-config to 1.25
+Error is
+
+root@instance-1:~/kubeadm# kubeadm init --config kubeadm-config.yaml
+[init] Using Kubernetes version: v1.24.0
+[preflight] Running pre-flight checks
+        [WARNING SystemVerification]: missing optional cgroups: blkio
+error execution phase preflight: [preflight] Some fatal errors occurred:
+        [ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]: /proc/sys/net/bridge/bridge-nf-call-iptables does not exist
+        [ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1
+        [ERROR KubeletVersion]: the kubelet version is higher than the control plane version. This is not a supported version skew and may lead to a malfunctional cluster. Kubelet version: "1.25.0" Control plane version: "1.24.0"
+[preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...`
+To see the stack trace of this error execute with --v=5 or higher
+
+I tried to follow this https://stackoverflow.com/questions/44125020/cant-install-kubernetes-on-vagrant , however I get this error
+
+root@instance-1:~/kubeadm# vi /etc/sysctl.conf
+add the line 
+net.bridge.bridge-nf-call-iptables = 1
+
+root@instance-1:~/kubeadm# sudo sysctl -p
+sysctl: cannot stat /proc/sys/net/bridge/bridge-nf-call-iptables: No such file or directory
+root@instance-1:~/kubeadm# touch ^C
+root@instance-1:~/kubeadm# /proc/sys/net/bridge/bridge-nf-call-iptablestouch ^C
+root@instance-1:~/kubeadm# touch /proc/sys/net/bridge/bridge-nf-call-iptables
+touch: cannot touch '/proc/sys/net/bridge/bridge-nf-call-iptables': No such file or directory
+root@instance-1:~/kubeadm# cd /proc
+root@instance-1:/proc# cd sys
+root@instance-1:/proc/sys# cd net
+root@instance-1:/proc/sys/net# cd bridge
+bash: cd: bridge: No such file or directory
+root@instance-1:/proc/sys/net# mkdir bridge
+mkdir: cannot create directory ‘bridge’: No such file or directory
+root@instance-1:/proc/sys/net# pwd
+/proc/sys/net
+root@instance-1:/proc/sys/net# ls
+core  ipv4  ipv6  netfilter  unix
+
+Tried this
+After editing the /etc/sysctl.conf
+net.bridge.bridge-nf-call-iptables = 1
+root@instance-1:/proc/sys/net/core# modprobe br_netfilter
+root@instance-1:/proc/sys/net/core# echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
+root@instance-1:/proc/sys/net/core# echo 1 > /proc/sys/net/bridge/bridge-nf-call-ip6tables
+root@instance-1:/proc/sys/net/core# sudo sysctl -p
+net.bridge.bridge-nf-call-iptables = 1
+
+That line error is gone
+
+root@instance-1:~# cd kubeadm/
+root@instance-1:~/kubeadm# kubeadm init --config kubeadm-config.yaml
+[init] Using Kubernetes version: v1.25.0
+[preflight] Running pre-flight checks
+        [WARNING SystemVerification]: missing optional cgroups: blkio
+error execution phase preflight: [preflight] Some fatal errors occurred:
+        [ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1
+[preflight] If you know what you are doing, you can make a check non-fatal with `--ignore-preflight-errors=...`
+To see the stack trace of this error execute with --v=5 or higher
+
+Did this
+root@instance-1:~/kubeadm# cat /proc/sys/net/ipv4/ip_forward
+0
+root@instance-1:~/kubeadm# echo 1 > /proc/sys/net/ipv4/ip_forward
+root@instance-1:~/kubeadm# cat /proc/sys/net/ipv4/ip_forward
+1
+
+Then it seemed to work
+
+[upload-certs] Skipping phase. Please see --upload-certs
+[mark-control-plane] Marking the node instance-1 as control-plane by adding the labels: [node-role.kubernetes.io/control-plane node.kubernetes.io/exclude-from-external-load-balancers]
+[mark-control-plane] Marking the node instance-1 as control-plane by adding the taints [node-role.kubernetes.io/control-plane:NoSchedule]
+[bootstrap-token] Using token: gdz9cy.15e8zzqpdze0ncb5
+[bootstrap-token] Configuring bootstrap tokens, cluster-info ConfigMap, RBAC Roles
+[bootstrap-token] Configured RBAC rules to allow Node Bootstrap tokens to get nodes
+[bootstrap-token] Configured RBAC rules to allow Node Bootstrap tokens to post CSRs in order for nodes to get long term certificate credentials
+[bootstrap-token] Configured RBAC rules to allow the csrapprover controller automatically approve CSRs from a Node Bootstrap Token
+[bootstrap-token] Configured RBAC rules to allow certificate rotation for all node client certificates in the cluster
+[bootstrap-token] Creating the "cluster-info" ConfigMap in the "kube-public" namespace
+[kubelet-finalize] Updating "/etc/kubernetes/kubelet.conf" to point to a rotatable kubelet client certificate and key
+[addons] Applied essential addon: CoreDNS
+[addons] Applied essential addon: kube-proxy
+
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+Alternatively, if you are the root user, you can run:
+
+  export KUBECONFIG=/etc/kubernetes/admin.conf
+
+You should now deploy a pod network to the cluster.
+Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
+  https://kubernetes.io/docs/concepts/cluster-administration/addons/
+
+Then you can join any number of worker nodes by running the following on each as root:
+
+kubeadm join 10.128.0.2:6443 --token gdz9cy.15e8zzqpdze0ncb5 \
+        --discovery-token-ca-cert-hash sha256:b44006ccb8a381a7db66dcb84c4269be20b05700e9ce603bc90c0ff20501edbb 
+
+4. Installing calico
+
+https://projectcalico.docs.tigera.io/getting-started/kubernetes/self-managed-onprem/onpremises
+
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/custom-resources.yaml -O
+kubectl create -f custom-resources.yaml
+
+
+root@instance-1:~/kubeadm# kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/tigera-operator.yaml
+namespace/tigera-operator created
+customresourcedefinition.apiextensions.k8s.io/bgpconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/bgppeers.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/blockaffinities.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/caliconodestatuses.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/clusterinformations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/felixconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/globalnetworksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/hostendpoints.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamblocks.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamconfigs.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipamhandles.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ippools.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/ipreservations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/kubecontrollersconfigurations.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networkpolicies.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/networksets.crd.projectcalico.org created
+customresourcedefinition.apiextensions.k8s.io/apiservers.operator.tigera.io created
+customresourcedefinition.apiextensions.k8s.io/imagesets.operator.tigera.io created
+customresourcedefinition.apiextensions.k8s.io/installations.operator.tigera.io created
+customresourcedefinition.apiextensions.k8s.io/tigerastatuses.operator.tigera.io created
+serviceaccount/tigera-operator created
+clusterrole.rbac.authorization.k8s.io/tigera-operator created
+clusterrolebinding.rbac.authorization.k8s.io/tigera-operator created
+deployment.apps/tigera-operator created
+root@instance-1:~/kubeadm# curl https://raw.githubusercontent.com/projectcalico/calico/v3.24.1/manifests/custom-resources.yaml -O
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   827  100   827    0     0   3846      0 --:--:-- --:--:-- --:--:--  3846
+root@instance-1:~/kubeadm# kubectl create -f custom-resources.yaml
+installation.operator.tigera.io/default created
+apiserver.operator.tigera.io/default created
+
+
+----
+Joining nodes
+installed kubeadmin, containerd and fixed the iptables
+Got
+root@node1:~/kubeadm# kubeadm join 10.128.0.2:6443 --token gdz9cy.15e8zzqpdze0ncb5 \
+        --discovery-token-ca-cert-hash sha256:b44006ccb8a381a7db66dcb84c4269be20b05700e9ce603bc90c0ff20501edbb
+[preflight] Running pre-flight checks
+        [WARNING SystemVerification]: missing optional cgroups: blkio
+error execution phase preflight: couldn't validate the identity of the API Server: invalid discovery token CA certificate hash: invalid hash "sha256:b44006ccb8a381a7db66dcb84c4269be20b05700e9ce603bc90c0ff20501edb", expected a 32 byte SHA-256 hash, found 31 bytes
+To see the stack trace of this error execute with --v=5 or higher
+
+From the control plane host, getting this error
+
+root@instance-1:~/kubeadm# kubeadm token list
+failed to list bootstrap tokens: Get "https://10.128.0.2:6443/api/v1/namespaces/kube-system/secrets?fieldSelector=type%3Dbootstrap.kubernetes.io%2Ftoken": dial tcp 10.128.0.2:6443: connect: connection refused
+To see the stack trace of this error execute with --v=5 or higher
+
+Even though in /etc/host I pointed 10.128.0.2 to localhost
+
+
+https://localhost:6443/api/v1/namespaces/kube-system/secrets?fieldSelector=type%3Dbootstrap.kubernetes.io%2Ftoken
+
+root@instance-1:~/kubeadm# netstat -aenp | grep 6443
+root@instance-1:~/kubeadm#
+
+API Server command line seems to byte
+
+4 S root       69593   67581 99  80   0 - 208933 -     11:12 ?        00:00:01 kube-apiserver --advertise-address=10.128.0.2 --allow-privileged=true --authorization-mode=Node,RBAC --client-ca-file=/etc/kubernetes/pki/ca.crt --enable-admission-plugins=NodeRestriction --enable-bootstrap-token-auth=true --etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt --etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt --etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key --etcd-servers=https://127.0.0.1:2379 --kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt --kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname --proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt --proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key --requestheader-allowed-names=front-proxy-client --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt --requestheader-extra-headers-prefix=X-Remote-Extra- --requestheader-group-headers=X-Remote-Group --requestheader-username-headers=X-Remote-User --secure-port=6443 --service-account-issuer=https://kubernetes.default.svc.cluster.local --service-account-key-file=/etc/kubernetes/pki/sa.pub --service-account-signing-key-file=/etc/kubernetes/pki/sa.key --service-cluster-ip-range=10.96.0.0/12 --tls-cert-file=/etc/kubernetes/pki/apiserver.crt --tls-private-key-file=/etc/kubernetes/pki/apiserver.key
+
+
+The api server is running as a pod and there are errors about connection
+
+ connect to {
+2022-09-12T11:58:49.270884222Z stderr F   "Addr": "127.0.0.1:2379",
+2022-09-12T11:58:49.27088983Z stderr F   "ServerName": "127.0.0.1",
+2022-09-12T11:58:49.270895759Z stderr F   "Attributes": null,
+2022-09-12T11:58:49.270901903Z stderr F   "BalancerAttributes": null,
+2022-09-12T11:58:49.270905987Z stderr F   "Type": 0,
+2022-09-12T11:58:49.270910124Z stderr F   "Metadata": null
+2022-09-12T11:58:49.270914009Z stderr F }. Err: connection error: desc = "transport: Error while dialing dial tcp 127.0.0.1:2379: connect: connection refused"
+2022-09-12T11:58:50.993638622Z stderr F E0912 11:58:50.993351       1 run.go:74] "command failed" err="context deadline exceeded"
+
+This is the etcd port.
+etcd was running fine.
+
+root@instance-1:/var/log/containers# netstat -aenp | grep 2379
+tcp        0      0 127.0.0.1:2379          0.0.0.0:*               LISTEN      0          157787     75429/etcd          
+tcp        0      0 10.128.0.2:2379         0.0.0.0:*               LISTEN      0          157786     75429/etcd          
+tcp        0      0 127.0.0.1:2379          127.0.0.1:53006         ESTABLISHED 0          157403     75429/etcd          
+tcp        0      0 10.128.0.2:2379         10.128.0.2:47586        ESTABLISHED 0          157811     75429/etcd          
+tcp        0      0 10.128.0.2:47586        10.128.0.2:2379         ESTABLISHED 0          157810     75429/etcd          
+tcp        0      0 127.0.0.1:53006         127.0.0.1:2379          ESTABLISHED 0          157402     75429/etcd          
+
+
+4 S root       75429   74811  0  80   0 - 2803568 -    11:58 ?        00:00:00 etcd --advertise-client-urls=https://10.128.0.2:2379 --cert-file=/etc/kubernetes/pki/etcd/server.crt --client-cert-auth=true --data-dir=/var/lib/etcd --experimental-initial-corrupt-check=true --experimental-watch-progress-notify-interval=5s --initial-advertise-peer-urls=https://10.128.0.2:2380 --initial-cluster=instance-1=https://10.128.0.2:2380 --key-file=/etc/kubernetes/pki/etcd/server.key --listen-client-urls=https://127.0.0.1:2379,https://10.128.0.2:2379 --listen-metrics-urls=http://127.0.0.1:2381 --listen-peer-urls=https://10.128.0.2:2
+
+Intermittent it works
+
+
+root@instance-1:/var/log/containers#  kubeadm token list
+TOKEN                     TTL         EXPIRES                USAGES                   DESCRIPTION                                                EXTRA GROUPS
+gdz9cy.15e8zzqpdze0ncb5   21h         2022-09-13T09:54:21Z   authentication,signing   <none>                                                     system:bootstrappers:kubeadm:default-node-token
+
+----
+
