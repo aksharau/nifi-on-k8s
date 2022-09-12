@@ -12,3 +12,14 @@ Scratch pad for Nifi on K8S
 6. We want to install Nifi 1.16.0 - create deployment yamls for the same
 7. Create deployment yamls for the zookeeper, version 3.6.2
 8. Set up certificates among the K8S cluster nodes. Better to keep master as separate
+
+## Installation
+
+Let me try to install via Helm
+https://artifacthub.io/packages/helm/cetic/nifi
+
+And then I can get the deployment yamls reverse engineered.
+
+username : cloud_user_p_0e071f7e@linuxacademygclabs.com
+password : XEowl4ZG
+URL : https://accounts.google.com/AddSession?service=accountsettings&sarp=1&continue=https%3A%2F%2Fconsole.cloud.google.com%2Fhome%2Fdashboard%3Fproject%3Dplayground-s-11-22a827f5#Email=cloud_user_p_0e071f7e@linuxacademygclabs.com
