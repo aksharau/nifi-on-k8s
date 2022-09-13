@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    ingress.kubernetes.io/backends: '{"k8s-be-30205--a853b1d6d8982e18":"HEALTHY","k8s1-a853b1d6-default-myrel-nifi-8443-a0600ad7":"UNHEALTHY"}'
+    ingress.kubernetes.io/forwarding-rule: k8s2-fr-yiiu3ehy-default-myrel-nifi-ingress-krocbn2s
+    ingress.kubernetes.io/target-proxy: k8s2-tp-yiiu3ehy-default-myrel-nifi-ingress-krocbn2s
+    ingress.kubernetes.io/url-map: k8s2-um-yiiu3ehy-default-myrel-nifi-ingress-krocbn2s
+    meta.helm.sh/release-name: myrel
+    meta.helm.sh/release-namespace: default
+  creationTimestamp: "2022-09-13T10:43:41Z"
+  finalizers:
+    - networking.gke.io/ingress-finalizer-V2
+  generation: 1
+  labels:
+    app: nifi
+    app.kubernetes.io/managed-by: Helm
+    chart: nifi-1.1.1
+    heritage: Helm
+    release: myrel
+  name: myrel-nifi-ingress
+  namespace: default
+  resourceVersion: "30816"
+  uid: 01549608-9b6f-474c-9dc9-ba0676bf67cd
+spec:
+  rules:
+    - host: myrel.com
+      http:
+        paths:
+          - backend:
+              service:
+                name: myrel-nifi
+                port:
+                  number: 8443
+            path: /
+            pathType: Prefix
+status:
+  loadBalancer:
+    ingress:
+      - ip: 35.190.58.33

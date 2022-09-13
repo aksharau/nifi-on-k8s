@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    cloud.google.com/neg: '{"ingress":true}'
+    meta.helm.sh/release-name: myrel
+    meta.helm.sh/release-namespace: default
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  creationTimestamp: "2022-09-13T10:43:41Z"
+  labels:
+    app: nifi
+    app.kubernetes.io/managed-by: Helm
+    chart: nifi-1.1.1
+    heritage: Helm
+    release: myrel
+  name: myrel-nifi-headless
+  namespace: default
+  resourceVersion: "27853"
+  uid: 6ce19567-c751-4fad-b4b1-78f19ffb9102
+spec:
+  clusterIP: None
+  clusterIPs:
+    - None
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
+    - name: cluster
+      port: 6007
+      protocol: TCP
+      targetPort: 6007
+    - name: site-to-site
+      port: 10000
+      protocol: TCP
+      targetPort: 10000
+  selector:
+    app: nifi
+    release: myrel
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}

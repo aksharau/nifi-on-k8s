@@ -1,0 +1,418 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    meta.helm.sh/release-name: myrel
+    meta.helm.sh/release-namespace: default
+  creationTimestamp: "2022-09-13T10:43:41Z"
+  generation: 1
+  labels:
+    app: nifi
+    app.kubernetes.io/managed-by: Helm
+    chart: nifi-1.1.1
+    heritage: Helm
+    release: myrel
+  name: myrel-nifi
+  namespace: default
+  resourceVersion: "28383"
+  uid: 29244753-6f16-4cab-a417-5feed6936527
+spec:
+  podManagementPolicy: Parallel
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: nifi
+      release: myrel
+  serviceName: myrel-nifi-headless
+  template:
+    metadata:
+      annotations:
+        security.alpha.kubernetes.io/sysctls: net.ipv4.ip_local_port_range=10000 65000
+      creationTimestamp: null
+      labels:
+        app: nifi
+        chart: nifi-1.1.1
+        heritage: Helm
+        release: myrel
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - nifi
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+      containers:
+        - command:
+            - bash
+            - -ce
+            - "prop_replace () {\n  target_file=${NIFI_HOME}/conf/${3:-nifi.properties}\n
+              \ echo \"updating ${1} in ${target_file}\"\n  if egrep \"^${1}=\" ${target_file}
+              &> /dev/null; then\n    sed -i -e \"s|^$1=.*$|$1=$2|\"  ${target_file}\n
+              \ else\n    echo ${1}=${2} >> ${target_file}\n  fi\n}\nmkdir -p ${NIFI_HOME}/config-data/conf\nFQDN=$(hostname
+              -f)\n\ncat \"${NIFI_HOME}/conf/nifi.temp\" > \"${NIFI_HOME}/conf/nifi.properties\"\nbin/nifi.sh
+              set-single-user-credentials admin admin\n\n\nif ! test -f /opt/nifi/data/flow.xml.gz
+              && test -f /opt/nifi/data/flow.xml; then\n  gzip /opt/nifi/data/flow.xml\nfi\n\n\nprop_replace
+              nifi.remote.input.host ${FQDN}\nprop_replace nifi.cluster.node.address ${FQDN}\nprop_replace
+              nifi.zookeeper.connect.string ${NIFI_ZOOKEEPER_CONNECT_STRING}\nprop_replace
+              nifi.web.http.host ${FQDN}\nprop_replace nifi.web.proxy.host myrel-nifi.default.svc\n\nif
+              [ ! -r \"${NIFI_HOME}/conf/nifi-cert.pem\" ]\nthen\n  /opt/nifi/nifi-toolkit-current/bin/tls-toolkit.sh
+              standalone \\\n    -n 'myrel-nifi-0.myrel-nifi-headless.default.svc.cluster.local'
+              \\\n    -C 'CN=admin, OU=NIFI' \\\n    -o \"${NIFI_HOME}/conf/\" \\\n    -P
+              changeMe \\\n    -S changeMe \\\n    --nifiPropertiesFile /opt/nifi/nifi-current/conf/nifi.properties\nfi\nprop_replace
+              nifi.web.http.network.interface.default \"eth0\" nifi.properties\nprop_replace
+              nifi.web.http.network.interface.lo \"lo\" nifi.properties\n\nfor f in \"${NIFI_HOME}/conf/authorizers.xml\"
+              \"${NIFI_HOME}/conf/login-identity-providers.xml\" ${NIFI_HOME}/conf/nifi.properties\ndo\n
+              \ echo === $f ===\n  cat $f\ndone\necho === end of files ===\n\nfunction
+              prop () {\n  target_file=${NIFI_HOME}/conf/nifi.properties\n  egrep \"^${1}=\"
+              ${target_file} | cut -d'=' -f2\n}\n\nfunction offloadNode() {\n    FQDN=$(hostname
+              -f)\n    echo \"disconnecting node '$FQDN'\"\n    baseUrl=https://${FQDN}:8443\n\n
+              \   echo \"keystoreType=$(prop nifi.security.keystoreType)\" > secure.properties\n
+              \   echo \"keystore=$(prop nifi.security.keystore)\" >> secure.properties\n
+              \   echo \"keystorePasswd=$(prop nifi.security.keystorePasswd)\" >> secure.properties\n
+              \   echo \"truststoreType=$(prop nifi.security.truststoreType)\" >> secure.properties\n
+              \   echo \"truststore=$(prop nifi.security.truststore)\" >> secure.properties\n
+              \   echo \"truststorePasswd=$(prop nifi.security.truststorePasswd)\" >>
+              secure.properties\n    echo \"proxiedEntity=CN=admin, OU=NIFI\" >> secure.properties\n
+              \  \n    secureArgs=\"-p secure.properties\"\n\n    echo baseUrl ${baseUrl}\n
+              \   echo \"gracefully disconnecting node '$FQDN' from cluster\"\n    ${NIFI_TOOLKIT_HOME}/bin/cli.sh
+              nifi get-nodes -ot json -u ${baseUrl} ${secureArgs} > nodes.json\n    nnid=$(jq
+              --arg FQDN \"$FQDN\" '.cluster.nodes[] | select(.address==$FQDN) | .nodeId'
+              nodes.json)\n    echo \"disconnecting node ${nnid}\"\n    ${NIFI_TOOLKIT_HOME}/bin/cli.sh
+              nifi disconnect-node -nnid $nnid -u ${baseUrl} ${secureArgs}\n    echo \"\"\n
+              \   echo \"get a connected node\"\n    connectedNode=$(jq -r 'first(.cluster.nodes|=sort_by(.address)|
+              .cluster.nodes[] | select(.status==\"CONNECTED\")) | .address' nodes.json)\n
+              \   baseUrl=https://${connectedNode}:8443\n    echo baseUrl ${baseUrl}\n
+              \   echo \"\"\n    echo \"wait until node has state 'DISCONNECTED'\"\n    while
+              [[ \"${node_state}\" != \"DISCONNECTED\" ]]; do\n        sleep 1\n        ${NIFI_TOOLKIT_HOME}/bin/cli.sh
+              nifi get-nodes -ot json -u ${baseUrl} ${secureArgs} > nodes.json\n        node_state=$(jq
+              -r --arg FQDN \"$FQDN\" '.cluster.nodes[] | select(.address==$FQDN) | .status'
+              nodes.json)\n        echo \"state is '${node_state}'\"\n    done\n    echo
+              \"\"\n    echo \"node '${nnid}' was disconnected\"\n    echo \"offloading
+              node\"\n    ${NIFI_TOOLKIT_HOME}/bin/cli.sh nifi offload-node -nnid $nnid
+              -u ${baseUrl} ${secureArgs}\n    echo \"\"\n    echo \"wait until node has
+              state 'OFFLOADED'\"\n    while [[ \"${node_state}\" != \"OFFLOADED\" ]];
+              do\n        sleep 1\n        ${NIFI_TOOLKIT_HOME}/bin/cli.sh nifi get-nodes
+              -ot json -u ${baseUrl} ${secureArgs} > nodes.json\n        node_state=$(jq
+              -r --arg FQDN \"$FQDN\" '.cluster.nodes[] | select(.address==$FQDN) | .status'
+              nodes.json)\n        echo \"state is '${node_state}'\"\n    done\n}\n\ndeleteNode()
+              {\n    echo \"deleting node\"\n    ${NIFI_TOOLKIT_HOME}/bin/cli.sh nifi
+              delete-node -nnid ${nnid} -u ${baseUrl} ${secureArgs}\n    echo \"node deleted\"\n}\n\nexecuteTrap()
+              {\n   echo Received trapped signal, beginning shutdown...;\n   ./bin/nifi.sh
+              stop;\n   exit 0;\n}\n\ntrap executeTrap TERM HUP INT;\ntrap \":\" EXIT\n\nexec
+              bin/nifi.sh run & nifi_pid=\"$!\"\necho NiFi running with PID ${nifi_pid}.\nwait
+              ${nifi_pid}\n"
+          env:
+            - name: NIFI_ZOOKEEPER_CONNECT_STRING
+              value: myrel-zookeeper:2181
+            - name: NIFI_WEB_HTTPS_HOST
+              value: 0.0.0.0
+          image: apache/nifi:1.16.3
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 90
+            periodSeconds: 60
+            successThreshold: 1
+            tcpSocket:
+              port: 8443
+            timeoutSeconds: 1
+          name: server
+          ports:
+            - containerPort: 8443
+              name: https
+              protocol: TCP
+            - containerPort: 6007
+              name: cluster
+              protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /opt/nifi/nifi-current/logs
+              name: logs
+            - mountPath: /opt/nifi/data
+              name: data
+            - mountPath: /opt/nifi/nifi-current/auth-conf/
+              name: auth-conf
+            - mountPath: /opt/nifi/nifi-current/config-data
+              name: config-data
+            - mountPath: /opt/nifi/flowfile_repository
+              name: flowfile-repository
+            - mountPath: /opt/nifi/content_repository
+              name: content-repository
+            - mountPath: /opt/nifi/provenance_repository
+              name: provenance-repository
+            - mountPath: /opt/nifi/nifi-current/conf/bootstrap.conf
+              name: bootstrap-conf
+              subPath: bootstrap.conf
+            - mountPath: /opt/nifi/nifi-current/conf/nifi.temp
+              name: nifi-properties
+              subPath: nifi.temp
+            - mountPath: /opt/nifi/nifi-current/conf/authorizers.temp
+              name: authorizers-temp
+              subPath: authorizers.temp
+            - mountPath: /opt/nifi/nifi-current/conf/bootstrap-notification-services.xml
+              name: bootstrap-notification-services-xml
+              subPath: bootstrap-notification-services.xml
+            - mountPath: /opt/nifi/nifi-current/conf/login-identity-providers-ldap.xml
+              name: login-identity-providers-ldap-xml
+              subPath: login-identity-providers-ldap.xml
+            - mountPath: /opt/nifi/nifi-current/conf/state-management.xml
+              name: state-management-xml
+              subPath: state-management.xml
+            - mountPath: /opt/nifi/nifi-current/conf/zookeeper.properties
+              name: zookeeper-properties
+              subPath: zookeeper.properties
+            - mountPath: /opt/nifi/data/flow.xml
+              name: flow-content
+              subPath: flow.xml
+        - args:
+            - /bin/sh
+            - -c
+            - trap "exit 0" TERM; tail -n+1 -F /var/log/nifi-app.log & wait $!
+          image: busybox:1.32.0
+          imagePullPolicy: IfNotPresent
+          name: app-log
+          resources:
+            limits:
+              cpu: 50m
+              memory: 50Mi
+            requests:
+              cpu: 10m
+              memory: 10Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/log
+              name: logs
+        - args:
+            - /bin/sh
+            - -c
+            - trap "exit 0" TERM; tail -n+1 -F /var/log/nifi-bootstrap.log & wait $!
+          image: busybox:1.32.0
+          imagePullPolicy: IfNotPresent
+          name: bootstrap-log
+          resources:
+            limits:
+              cpu: 50m
+              memory: 50Mi
+            requests:
+              cpu: 10m
+              memory: 10Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/log
+              name: logs
+        - args:
+            - /bin/sh
+            - -c
+            - trap "exit 0" TERM; tail -n+1 -F /var/log/nifi-user.log & wait $!
+          image: busybox:1.32.0
+          imagePullPolicy: IfNotPresent
+          name: user-log
+          resources:
+            limits:
+              cpu: 50m
+              memory: 50Mi
+            requests:
+              cpu: 10m
+              memory: 10Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /var/log
+              name: logs
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+      serviceAccount: default
+      serviceAccountName: default
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: bootstrap.conf
+                path: bootstrap.conf
+            name: myrel-nifi-config
+          name: bootstrap-conf
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: nifi.properties
+                path: nifi.temp
+            name: myrel-nifi-config
+          name: nifi-properties
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: authorizers.xml
+                path: authorizers.temp
+            name: myrel-nifi-config
+          name: authorizers-temp
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: bootstrap-notification-services.xml
+                path: bootstrap-notification-services.xml
+            name: myrel-nifi-config
+          name: bootstrap-notification-services-xml
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: login-identity-providers-ldap.xml
+                path: login-identity-providers-ldap.xml
+            name: myrel-nifi-config
+          name: login-identity-providers-ldap-xml
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: state-management.xml
+                path: state-management.xml
+            name: myrel-nifi-config
+          name: state-management-xml
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: zookeeper.properties
+                path: zookeeper.properties
+            name: myrel-nifi-config
+          name: zookeeper-properties
+        - configMap:
+            defaultMode: 420
+            items:
+              - key: flow.xml
+                path: flow.xml
+            name: myrel-nifi-config
+          name: flow-content
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: logs
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 5Gi
+        storageClassName: standard
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: config-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Mi
+        storageClassName: standard
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+        storageClassName: standard
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: flowfile-repository
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: standard
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: content-repository
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: standard
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: provenance-repository
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: standard
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        creationTimestamp: null
+        name: auth-conf
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Mi
+        storageClassName: standard
+        volumeMode: Filesystem
+      status:
+        phase: Pending
+status:
+  availableReplicas: 1
+  collisionCount: 0
+  currentReplicas: 1
+  currentRevision: myrel-nifi-c95cf679b
+  observedGeneration: 1
+  readyReplicas: 1
+  replicas: 1
+  updateRevision: myrel-nifi-c95cf679b
+  updatedReplicas: 1
