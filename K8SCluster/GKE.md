@@ -235,3 +235,25 @@ kubectl port-forward -n default svc/myrel 8443:8443
 
 I gave this
 kubectl port-forward -n default svc/myrel-nifi 8443:8443
+
+## Another instllation in a differnet namespace
+
+```
+helm install somerel cetic/nifi --set auth.singleUser.username=admin --set auth.singleUser.password=admin --set ingress.enabled=true --set persistence.enabled=true --set persistence.storageClass=standard --set ingress.hosts={somerel.com} --set replicaCount=3 --namespace nifi
+```
+
+Started 2 pods, but third failed with
+
+```
+
+  Type     Reason                   Age                    From                     Message
+  ----     ------                   ----                   ----                     -------
+  Normal   LoadBalancerNegNotReady  2m14s                  neg-readiness-reflector  Waiting for pod to become healthy in at least one of the NEG(s): [k8s1-a853b1d6-nifi-somerel-nifi-8443-d218e2b1]
+  Normal   NotTriggerScaleUp        2m13s                  cluster-autoscaler       pod didn't trigger scale-up:
+  Warning  FailedScheduling         2m11s (x3 over 2m14s)  default-scheduler        0/3 nodes are available: 3 pod has unbound immediate PersistentVolumeClaims.
+  Warning  FailedScheduling         57s (x2 over 2m6s)     default-scheduler        0/3 nodes are available: 1 Insufficient cpu, 2 node(s) exceed max volume count
+```
+
+Resource usages
+
+Refer the [./resourceUsage.png]
