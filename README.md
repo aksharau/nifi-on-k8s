@@ -20,6 +20,6 @@ https://artifacthub.io/packages/helm/cetic/nifi
 
 And then I can get the deployment yamls reverse engineered.
 
-username : cloud_user_p_0e071f7e@linuxacademygclabs.com
-password : XEowl4ZG
-URL : https://accounts.google.com/AddSession?service=accountsettings&sarp=1&continue=https%3A%2F%2Fconsole.cloud.google.com%2Fhome%2Fdashboard%3Fproject%3Dplayground-s-11-22a827f5#Email=cloud_user_p_0e071f7e@linuxacademygclabs.com
+cloud_user_p_1118cebf@linuxacademygclabs.com
+NkWoJDdN
+https://accounts.google.com/AddSession?service=accountsettings&sarp=1&continue=https%3A%2F%2Fconsole.cloud.google.com%2Fhome%2Fdashboard%3Fproject%3Dplayground-s-11-462b098e#Email=cloud_user_p_1118cebf@linuxacademygclabs.com
