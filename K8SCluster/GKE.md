@@ -2,6 +2,16 @@
 
 ## Created a 3 node GKE standard cluster
 
+## Configuring kubectl
+
+Open the cloud shell.
+
+https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl
+
+```
+gcloud container clusters get-credentials cluster-1 --zone us-central1-c
+```
+
 ## Ignix Controller installation
 
 ```
