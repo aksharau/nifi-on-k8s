@@ -2,20 +2,7 @@
 
 Scratch pad for Nifi on K8S
 
-## Steps
+The Deployment folder contains the kubernetes manifest files to have a 3 node Nifi set up.
+The installation was tried in GKE cluster, not all PV PVCs are captured.
 
-1. Create a K8S cluster 3 node cluster
-2. Ensure there are disk mounts for Nifi Repositories
-3. Create two namespaces since we are trying to emulate a multi-tenant Nifi such that each tenant gets their own namespace
-4. Create service accounts, PSP. PodDisruptionBudget,Namespace resource quotas
-5. Set up ingress-ngnix on the K8S cluster
-6. We want to install Nifi 1.16.0 - create deployment yamls for the same
-7. Create deployment yamls for the zookeeper, version 3.6.2
-8. Set up certificates among the K8S cluster nodes. Better to keep master as separate
-
-## Installation
-
-Let me try to install via Helm
-https://artifacthub.io/packages/helm/cetic/nifi
-
-And then I can get the deployment yamls reverse engineered.
+The PV folder contains a POC files for setting up host path PV such that two seperate namespaces can mount to two different directories
