@@ -267,3 +267,7 @@ Started 2 pods, but third failed with
 Resource usages
 
 Refer the [./resourceUsage.png]
+
+## Refereces
+
+https://github.com/Datenworks/apache-nifi-helm
