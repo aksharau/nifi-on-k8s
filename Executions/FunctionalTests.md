@@ -165,6 +165,45 @@ mysql-0                                                   1/1     Running   0   
 nginx-ingress-ingress-nginx-controller-5d88d44856-99vsr   1/1     Running   0              25m
 ```
 
+## Connecting to Nifi
+
+Had to add this annotation to the ingress-controller pod
+
+```
+kubernetes.io/ingress.class: nginx
+```
+
+Else it was not working.The ingress-controller logs had error stating that this above annotation was missing.
+
+There are following errors in the kube-dns logs
+
+```
+I0929 09:10:00.914814       1 dns.go:616] Could not find endpoints for service "myrel-zookeeper-headless" in namespace "default". DNS records will be created once endpoints show up.
+I0929 09:10:00.968139       1 dns.go:616] Could not find endpoints for service "myrel-nifi-headless" in namespace "default". DNS records will be created once endpoints show up.
+```
+
+Looks like it can be ignored since the headless service was there.
+
+### Port forwarding
+
+```
+kubectl port-forward -n default svc/myrel-nifi 8443:8443
+
+https://ssh.cloud.google.com/devshell/proxy?port=8443
+
+http://ssh.cloud.google.com/devshell/proxy?port=8443&_ga=2.34776609.-1421203454.1664441753
+
+https://shell.cloud.google.com/devshell/proxy?port=8443&hl=en_US&fromcloudshell=true
+
+http://ssh.cloud.google.com/devshell/cs-256205935429-default/proxy?port=8443
+
+```
+
+### Ingress
+
+Lets try this tomorrow
+https://cloud.google.com/community/tutorials/nginx-ingress-gke
+
 ## Success Scenarios
 
 1. Login to the UI, create a sample process group for Hive to MySQL transfer
