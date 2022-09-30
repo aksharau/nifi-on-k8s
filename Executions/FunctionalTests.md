@@ -201,8 +201,59 @@ http://ssh.cloud.google.com/devshell/cs-256205935429-default/proxy?port=8443
 
 ### Ingress
 
-Lets try this tomorrow
+Lets try this
 https://cloud.google.com/community/tutorials/nginx-ingress-gke
+
+No luck
+
+### POD to LB
+
+From the GKE cluster I went to the pod and exposed it as a service.
+Then I get following error
+
+```
+System Error
+The request contained an invalid host header [35.188.180.131:80] in the request [/]. Check for request manipulation or third-party intercept.
+Valid host headers are [empty] or:
+127.0.0.1
+127.0.0.1:8443
+localhost
+localhost:8443
+[::1]
+[::1]:8443
+myrel-nifi-0.myrel-nifi-headless.default.svc.cluster.local
+myrel-nifi-0.myrel-nifi-headless.default.svc.cluster.local:8443
+10.4.0.7
+10.4.0.7:8443
+myrel-nifi.default.svc
+```
+
+Seems to be the issue with https://github.com/cetic/helm-nifi/issues/72
+
+Lets try this
+https://github.com/cetic/helm-nifi/issues/192
+
+```
+helm install myrel cetic/nifi --set auth.singleUser.username=admin --set auth.singleUser.password=admin --set ingress.enabled=true --set persistence.enabled=true --set persistence.storageClass=standard --set ingress.hosts={34.173.3.185.nip.io} --set properties.webProxyHost=34.173.3.185.nip.io
+```
+
+The above works.
+Need to get the ingress service external IP and set it here
+
+Give below annotations in the ingress
+
+```
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+```
+
+The user and password is generated - check it from logs.
+
+But then got this issue
+https://community.cloudera.com/t5/Support-Questions/NiFi-single-user-Certificate-and-Token-not-found/td-p/345007
+
+Will check it on Monday. \o/
 
 ## Success Scenarios
 
