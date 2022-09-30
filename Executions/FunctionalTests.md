@@ -248,6 +248,8 @@ Give below annotations in the ingress
     nginx.ingress.kubernetes.io/backend-protocol: HTTPS
 ```
 
+Not sure if this is related, but I also enabled TCP load balancing: https://cloud.google.com/kubernetes-engine/docs/how-to/internal-load-balancing
+
 The user and password is generated - check it from logs.
 
 But then got this issue
